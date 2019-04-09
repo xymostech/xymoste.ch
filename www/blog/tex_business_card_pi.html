@@ -1,0 +1,183 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8">
+    <title>calculating pi on a business card using TeX | xymostech</title>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/normalize/8.0.0/normalize.min.css" rel="stylesheet">
+
+    <style type="text/css">
+      @font-face {
+          font-family: 'Muli';
+          font-style: normal;
+          font-weight: 400;
+          src: local('Muli Regular'),
+               local('Muli-Regular'),
+               url(/fonts/MuliRegular.woff2) format('woff2');
+      }
+      @font-face {
+          font-family: 'Fira Mono';
+          font-style: normal;
+          font-weight: 400;
+          src: local('Fira Mono Regular'),
+               local('FiraMono-Regular'),
+               url(/fonts/FiraMono.woff2) format('woff2');
+      }      
+
+      main {
+          max-width: 38rem;
+          padding: 2rem;
+          margin: auto;
+          font-family: 'Muli', sans-serif;
+      }
+
+      a {
+          text-decoration: none;
+      }
+
+      article a {
+          text-decoration: underline dotted;
+      }
+      
+      ul {
+          padding: 0;
+      }
+
+      li {
+          list-style: none;
+      }
+
+      code {
+          font-family: 'Fira Mono', monospace;
+      }
+    </style>
+  </head>
+  <body>
+    <main>
+      <p><a href="/">Xymostech</a> &gt; <a href="/blog/">Blog</a></p>
+      <article>
+        <h1>Calculating Pi on a Business Card using TeX</h1>
+        <time datetime="2019-04-08">April 8th, 2019</time>
+
+        <p>I've seen a trend recently about putting some fun piece of code on the
+        back of a business card. For no reason in particular, I decided that I
+        wanted to do something similar! And since I've been sinking a bunch of my
+        time into TeX recently, I decided to implement something in TeX.</p>
+
+        <p>TeX can't (or at least makes it really hard to) do anything like make
+        an interactive game or spit out fancy bitmap raytraced graphics, so I had
+        to come up with something that was mostly text-based. I remembered a
+        recent post on Pi day about Google calculating some ridiculous number of
+        digits of Pi, so I thought there might be some simple algorithms for
+        calculating pi. Also, TeX doesn't really have easy support for floating
+        point numbers, so something that only does integer arithmetic would be
+        ideal.</p>
+
+        <p>Pretty quickly, I learned about
+        a <a href="http://iwriteiam.nl/SigProgC.html#pi">tiny C program</a> that
+        Dik T. Winter wrote to calculate digits of pi. It only used integer math,
+        so it seemed like a good fit for what I was looking for! After doing some
+        deobfuscation and then doing some digging, I eventually
+        found
+        <a href="http://dept.cs.williams.edu/~heeringa/classes/cs135/s15/readings/spigot.pdf">a good description</a>
+        of the algorithm that it was using.</p>
+
+        <p>With the algorithm in hand, I started implementing. Unfortunately, I
+        ran into a snag immediately: the original algorithm used a really big
+        array (with more than 3 times the number of spaces as digits you want
+        to calculate) to store intermediate remainders as it was calculating,
+        but TeX doesn't have the concept of arrays. There are a static number
+        of variable registers (in plain TeX, 256) that could be used as an
+        array, but that would only let me calculate about 70 digits of pi. I
+        decided that that's how it was going to go and started implementing the
+        rest of the algorithm, using the registers as the array.</p>
+
+        <p>Things came together nicely. There was basically one big loop to
+        calculate the final product, and then a few helper macros to do things
+        like calculate remainders and add some formatting (The original program
+        spits out &#8220;31415926...&#8221; but I wanted it to actually show
+        &#8220;3.1415926&#8221; with the decimal point). I eventually got
+        things working, and it was pretty cool! TeX, a markup language with no
+        floating point numbers, was calculating decimal digits of an irrational
+        number.</p>
+
+        <p>However, I wasn't terribly satisfied with the result. I wanted to be
+        able to calculate an arbitrary number of digits of pi and not be
+        limited by the number of registers available. I thought about the
+        different kinds of values in TeX, and decided that &#8220;token
+        lists&#8221;, which could store (almost) unlimited amounts of token
+        characters, could probably be retrofitted to store unlimited numbers of
+        integers. So, I set out to build a real array.</p>
+
+        <p>Actually, I figured that due to how the algorithm works, I didn't
+        need the full indexing power of an array. Since the algorithm linearly
+        traverses the array and just edits the one value that it's looking at,
+        I could make do with 2 stacks: I'd pop values off of one stack and then
+        push the new values onto the second stack. Then, after each iteration
+        I'd replace the (empty) first stack with the new second stack. Building
+        a stack using token lists turned out to be fairly straightforwards:</p>
+
+        <p>First, we create <code>\currlist</code> and <code>\nextlist</code> as aliases for two token list registers:</p>
+
+        <pre><code>  \newtoks\currlist
+  \newtoks\nextlist</code></pre>
+
+        <p>We're going to store our lists like <code>;&lt;number&gt;;&lt;number&gt;;&lt;number&gt;;:</code>. This allows us to distinguish the different values, as well as tell where the end of the list is.</p>
+
+        <p>Our first macro pops a value off of <code>\currlist</code> and places it in the variable pass in as <code>#1</code>:</p>
+
+        <pre><code>  \def\popcurr #1{%
+    \expandafter\popcurrinner
+      \the\currlist
+      {#1}%
+  }</code></pre>
+
+        <p>We're effectively passing the current value
+        of <code>\currlist</code> and the variable we want to be setting to the
+        macro that does the real work, <code>\popcurrinner</code>. We have to
+        use <code>\expandafter</code> to get TeX to
+        expand <code>\the\currlist</code> to its value (instead of just passing
+        the literal tokens <code>\the</code> and <code>\currlist</code>).</p>
+
+        <p>Now we write that inner macro. Using the power of parameter
+        expansion, we can pull out the first value from the list (which is
+        recognized by the ; surrounding it) as <code>#1</code>, store it in the
+        appropriate variable (which is now <code>#3</code>), and then finally
+        set <code>\currlist</code> to be the remainder of the
+        list, <code>#2</code>.</p>
+
+        <pre><code>  \def\popcurrinner ;#1;#2:#3{%
+    % Store the first value in #3
+    #3=#1%
+    % Set the new \currlist
+    \currlist={;#2:}%
+  }</code></pre>
+
+        <p>The last thing we need is the ability to push to our lists. This is
+        relatively simple, but we have to use a bunch
+        of <code>\expandafter</code> to get things to evaluate correctly. This
+        is the function for pushing to <code>\currlist</code>, and there's an
+        analagous one for <code>\nextlist</code>. Since we're never popping
+        from <code>\nextlist</code>, this is all we need.</p>
+
+        <pre><code>  \def\pushcurr #1{%
+    \expandafter\currlist\expandafter=\expandafter{%
+      \the\currlist
+      #1%
+    }%
+  }</code></pre>
+
+        <p>Armed with our new infinite stack abilities, we can now calculate as
+        many digits of pi as we want! For the final design I put on my business
+        card, I calculated just enough digits to fill up the back of a business
+        card, and then printed a couple business cards with the generated
+        output on the back instead of the code.</p>
+
+        <p>I had to minify the code to fit on a business card, so the resulting
+        code isn't terribly understandable, but that's okay. Hopefully nobody
+        tries to actually read it off of the business card anyways!</p>
+
+        <p><a href="/pi">See the whole TeX program here</a></p>
+      </article>
+    </main>
+  </body>
+</html>

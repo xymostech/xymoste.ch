@@ -1,0 +1,183 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8">
+    <title>calculating pi on a business card using TeX | xymostech</title>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/normalize/8.0.0/normalize.min.css" rel="stylesheet">
+
+    <style type="text/css">
+      @font-face {
+          font-family: 'Muli';
+          font-style: normal;
+          font-weight: 400;
+          src: local('Muli Regular'),
+               local('Muli-Regular'),
+               url(/fonts/MuliRegular.woff2) format('woff2');
+      }
+      @font-face {
+          font-family: 'Fira Mono';
+          font-style: normal;
+          font-weight: 400;
+          src: local('Fira Mono Regular'),
+               local('FiraMono-Regular'),
+               url(/fonts/FiraMono.woff2) format('woff2');
+      }      
+
+      main {
+          max-width: 38rem;
+          padding: 2rem;
+          margin: auto;
+      }
+
+      a {
+          text-decoration: underline dotted;
+      }
+
+      code {
+          font-family: 'Fira Mono', monospace;
+      }
+
+      pre {
+          white-space: pre-wrap;
+      }
+    </style>
+  </head>
+  <body>
+    <main>
+      <pre><code>% Calculating pi in TeX, to fit on a business card
+% See <a href="/blog/tex_business_card_pi.html">the blog post</a> for more information.
+
+% Setup variable names
+\newcount\remainder
+\newcount\i
+\newcount\numterms
+\newcount\digit
+\newcount\carry
+\newcount\divisor
+\newcount\index
+\newcount\loopcarry
+\newcount\arrval
+\newcount\digits
+
+\newtoks\currlist
+\newtoks\nextlist
+
+% Calculate #1 as the remainder of #2/#3.
+\def\rem#1=#2mod#3{%
+  \remainder=#2%
+  \divide\remainder by#3%
+  \multiply\remainder by-#3%
+  \advance\remainder by#2%
+  #1=\remainder}
+
+% Functions for pushing and popping from the arrays of numbers.
+% Each list is stored looking like
+% ;&lt;number&gt;;&lt;number&gt;;...;&lt;number&gt;;:
+% We can then pull out the numbers between the ; and detect the
+% end using the :
+
+% Helper function for \popcurr
+\def\popcurrinner;#1;#2:#3{#3=#1\global\currlist{;#2:}}
+% Pops the first element of \currlist into #1
+\def\popcurr#1{\expandafter\popcurrinner\the\currlist#1}
+% Pushing text #1 onto nextlist or currlist
+\def\pushcurr#1{%
+  \expandafter\global\expandafter\currlist\expandafter{%
+    \the\currlist #1}}
+\def\pushnext#1{%
+  \expandafter\global\expandafter\nextlist\expandafter{%
+    \the\nextlist #1}}
+
+% Calculate #1 digits of pi using the "spigot" algorithm. See
+% <a href="http://dept.cs.williams.edu/~heeringa/classes/cs135/s15/readings/spigot.pdf">spigot.pdf</a> for more information about the algorithm. See
+% <a href="http://iwriteiam.nl/SigProgC.html#pi">iwriteiam.nl/SigProgC.html#pi</a> for the C program that this
+% version is based on.
+\def\pid#1{%
+  % Given the number of digits we want, we figure out how many
+  % terms in the expansion we need for the digit to be correct.
+  % Since we're calculating in groups of 4, we need 14n/4
+  % terms.
+  \numterms=#1
+  \multiply\numterms by14
+  \divide\numterms by4
+  % Initialize each of the terms to 2000 by pushing that many
+  % terms onto the list.
+  \i=0
+  \currlist={;}%
+  \loop\ifnum\i<\numterms
+    \pushcurr{2000;}%
+    \advance\i by1
+  \repeat
+  \pushcurr{:}%
+  % Now the main loop. We repeat this until we've calculated
+  % all of the digits, keeping track of the carry as we go 
+  % along.
+  \digit=\numterms
+  \loopcarry=0
+  \loop\ifnum\digit>0 {%
+    % We keep track of the carry from one term to the next
+    % here.
+    \carry=0
+    % Setup the list to receive the updated term remainders as
+    % we calculate them.
+    \nextlist={;}%
+    % Iterate through each of the terms
+    \i=\numterms
+    \loop\ifnum\i>0
+      % Pull the term out of the list
+      \popcurr\arrval
+      % Calculate the sum of term+carry
+      \multiply\carry by\i
+      \multiply\arrval by10000
+      \advance\carry by\arrval
+      % Calculate the divisor 2i-1
+      \divisor=\i
+      \multiply\divisor by2
+      \advance\divisor by-1
+      % The remainder goes into the next list, and the divisor
+      % gets carried over.
+      \rem\arrval=\carry mod\divisor
+      \expandafter\pushnext\expandafter{\the\arrval;}%
+      \divide\carry by\divisor
+      %
+      \advance\i by-1
+    \repeat
+    % Finish the new list and replace currlist for the next
+    % loop
+    \pushnext{:}%
+    \global\currlist=\nextlist
+    % Calculate the actual digits to show, which are the
+    % carry/10000 + remainder from the last loop.
+    \digits=\carry
+    \divide\digits by10000
+    \advance\digits by\loopcarry
+    % We add 10000 to the digits and then remove the leading
+    % 1 in \maybeaddpoint so that we don't miss leading 0s.
+    \advance\digits by10000
+    \expandafter\maybeaddpoint\the\digits%
+    % Calculate the remainder to carry to the next iteration
+    \rem{\global\loopcarry}=\carry mod{10000}%
+    %
+    \global\advance\digit by-14
+  }\repeat%
+}
+
+% Add a . after the first digit if this is the first group of
+% digits. This turns 314159 into 3.14159. Also, add an \hfil
+% in between each number so that we can break after each number
+% and so we justify the digits.
+\def\maybeaddpoint 1#1#2#3#4{%
+  #1\hfil\ifnum\digit=\numterms.\fi#2\hfil#3\hfil#4\hfil}
+
+% Setup the page for a business card size
+\pdfpagewidth=3.5in
+\pdfpageheight=2in
+\hsize=3in
+\hoffset=-0.75in
+\voffset=-0.75in
+\nopagenumbers
+
+% Actually print the output
+\noindent $\pi={}$\pid{100}...\hfill~
+
+\bye
