@@ -1,0 +1,75 @@
+==================================================================
+https://keybase.io/xymostech
+--------------------------------------------------------------------
+
+I hereby claim:
+
+  * I am an admin of https://xymoste.ch
+  * I am xymostech (https://keybase.io/xymostech) on keybase.
+  * I have a public key with fingerprint 1FC6 39C9 6409 A5C1 42AE  4394 9A36 4DA3 D08D 1627
+
+To do so, I am signing this object:
+
+{
+  "body": {
+    "key": {
+      "eldest_kid": "0120bef238a6ccb5bd1d19f39bf5cb9c61dc9832d78c0b5e04817f5f086f6f17b1600a",
+      "fingerprint": "1fc639c96409a5c142ae43949a364da3d08d1627",
+      "host": "keybase.io",
+      "key_id": "9a364da3d08d1627",
+      "kid": "01011581773a5f116c3d7ce653a8ff25488ccef984dcfaf00256f0f562b56eb16a3f0a",
+      "uid": "13f494bc46bc74d6fc340f699b758119",
+      "username": "xymostech"
+    },
+    "service": {
+      "hostname": "xymoste.ch",
+      "protocol": "https:"
+    },
+    "type": "web_service_binding",
+    "version": 1
+  },
+  "ctime": 1555361428,
+  "expire_in": 157680000,
+  "prev": "d23e56e22499a5d6c6e40bd328982fecd463f873dd7c70d9e3b1ad72e3ae1fb8",
+  "seqno": 18,
+  "tag": "signature"
+}
+
+which yields the signature:
+
+-----BEGIN PGP MESSAGE-----
+Version: Keybase OpenPGP v2.1.0
+Comment: https://keybase.io/crypto
+
+yMNuAnicbZJ9UFRVGMZ3+cydSZlChTSpWwzQ7Gz389x7kQkUFBxEcUijxNZ7zz0H
+VmAXdpeFXSA1hgZdlyYLkD6YNGiExhJLkkwEBnFL+RhEp2JKaWomxhTHUvAD7SyT
+fzTT+efMeef3Pu/zPnMGHg/WGfTvg6xPRn1L4vTn+prKdHlfXX+vklJtmptKrKQK
+0fyFijTkcJoLLRqVSNEMS6sIs5ykAAhVQdUYjZExJ6tYgKoMAaNBWeJYTZQgrQqI
+5iVGxAKmJYABZkSVATStUEYKW6z5yF5it1idRJbBEHAylAFPy4oAGZ5VEM/JvKxw
+gNcUTqMljQGsSBoLbI5ABzGnKg5ksthIjTzM8/b+h3/km2YYgXgROUXADAMgp4kQ
+AYFTJIxZgZckCBGWJV6DWME0zQoA01gArCoARFwrHJ73XTYvx3CYl3kV8kCFIq8B
+DDmexkCWVZEMYeQA6EB2q1KMCF3hLiamESygqo0UKbssEAWSDazyX8REGCNVYrc5
+bdBWROoFTmeJIzHQ53SXBMBypJr/lTCrFqtGYiQdLmR3WGxWKpEhJHRaApqMIAgc
+IFFKRgpVlFjsyGwJEIIIJJqcwBzkIpIayyGyJMvyMglfAxAgnlY1jpVkicUIajzg
+sCRyGklMpDUZcSqjaCKLOAUxWJWowFKlVhvRJqOcSj7RdFjyrYqzzI6o6v6+vBCd
+3qALCw0K/C+dYUHEo183LkToThtsi7ztb3ymflpRFZXbeTU+2FnTa/B29YxEP3fk
+3ETz3VtZfMgJqjP2YEvjroLSMEcQbY7Vlz0ZMpexpW1g9tT03maalX/XTe5+cXLq
+nl4pX3vx4uArHx149eueyE2zE1UxW2Kk6Ndd7i7jZnZ60Y89M1fupkBPxKW8rUZf
++rb0y5kbN4vjg63Vc4OVtxd6vjvFfHApWHinzpX8l3rk+ycyBtqOu2+sehAytPRP
+2zrHDN2fpKY1NPvv7z9gXf/SUe+OpkP4cHPqtZd3nZ/8rd83tefXyNTbh/paTkSP
+ZWKT/UL0Wd2Yfcibm92d43+moTVNSZxuaP8mwXaj5nPltYFn1cySt0bq02LP7Bwt
+7T3d6M04W//mpqHZOe9aX87w6Br+5npHUNTEhHbTkGRa8HNV0PALKRu6Pd78Ffqa
+5BX+/C/32SnT7tVvX9s5417nWe4pUq9vez6u+N3qwoPynTqTP+vK3tKTcda/z7Q/
+dn4mJUGxHvWPADdHddf81Li6rT6+S65THj49d6GmtnNZxQ8nE+p7W7/tzsjd+CBs
+pX5rO2hO9kR2fBi52DfcMbbnflNS7LLQP8bdl48//GVNh3/lU+FXN5SNZy+/c++Y
+Yy46KCoPO7X4rqUtyYfFgY9zwhemDt5qjHF9kZ3es0NZlX8sdElzcuN00eLp2nBq
+vLbX17m/fHv31Hb1H2IswGk=
+=gtRt
+-----END PGP MESSAGE-----
+
+And finally, I am proving ownership of this host by posting or
+appending to this document.
+
+View my publicly-auditable identity here: https://keybase.io/xymostech
+
+==================================================================
