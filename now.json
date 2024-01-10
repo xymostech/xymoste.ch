@@ -1,12 +1,20 @@
 {
   "version": 2,
-  "name": "xymoste.ch",
   "alias": "xymoste.ch",
   "builds": [
     {"src": "www/**", "use": "@now/static"},
     {"src": "www/.well-known/*", "use": "@now/static"}
   ],
-  "routes": [
-    {"src": "/(.*)", "dest": "/www/$1"}
+  "rewrites": [
+    {"source": "/(.*)", "destination": "/www/$1"}
+  ],
+  "headers": [
+    {
+      "source": "/projects/tetris/(.*)",
+      "headers": [
+        { "key": "Cross-Origin-Opener-Policy", "value": "same-origin" },
+        { "key": "Cross-Origin-Embedder-Policy", "value": "require-corp" }
+      ]
+    }
   ]
 }
