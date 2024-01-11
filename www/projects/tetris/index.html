@@ -5,6 +5,11 @@
 		<meta name="viewport" content="width=device-width, user-scalable=no">
 		<title>Tetris</title>
 		<style>
+h2 {
+	font: sans-serif;
+	color: white;
+}
+
 body {
 	touch-action: none;
 	margin: 0;
@@ -12,6 +17,9 @@ body {
 	padding: 0;
 	text-align: center;
 	background-color: black;
+	display: flex;
+	flex-direction: column;
+	align-items: center;
 }
 
 #canvas {
@@ -114,6 +122,7 @@ body {
 
 	</head>
 	<body>
+		<h2>This is a simple Tetris clone I made to learn more about the Godot game engine.</h2>
 		<canvas id="canvas">
 			HTML5 canvas appears to be unsupported in the current browser.<br >
 			Please try updating or use a different browser.
@@ -137,7 +146,7 @@ body {
 
 		<script src="index.js"></script>
 		<script>
-const GODOT_CONFIG = {"args":[],"canvasResizePolicy":2,"executable":"index","experimentalVK":false,"fileSizes":{"index.pck":34992,"index.wasm":35649444},"focusCanvas":true,"gdextensionLibs":[]};
+const GODOT_CONFIG = {"args":[],"canvasResizePolicy":1,"executable":"index","experimentalVK":false,"fileSizes":{"index.pck":35216,"index.wasm":35649444},"focusCanvas":true,"gdextensionLibs":[]};
 const engine = new Engine(GODOT_CONFIG);
 
 (function () {
