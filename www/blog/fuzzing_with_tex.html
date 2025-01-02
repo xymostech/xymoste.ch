@@ -1,0 +1,399 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8">
+    <title>fuzzing with TeX or: rounding is hard | xymostech</title>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/normalize/8.0.0/normalize.min.css" rel="stylesheet">
+
+    <style type="text/css">
+      @font-face {
+          font-family: 'Muli';
+          font-style: normal;
+          font-weight: 400;
+          src: local('Muli Regular'),
+               local('Muli-Regular'),
+               url(/fonts/MuliRegular.woff2) format('woff2');
+      }
+      @font-face {
+          font-family: 'Fira Mono';
+          font-style: normal;
+          font-weight: 400;
+          src: local('Fira Mono Regular'),
+               local('FiraMono-Regular'),
+               url(/fonts/FiraMono.woff2) format('woff2');
+      }      
+
+      main {
+          max-width: 38rem;
+          padding: 2rem;
+          margin: auto;
+          font-family: 'Muli', sans-serif;
+      }
+
+      a {
+          text-decoration: none;
+      }
+
+      article a {
+          text-decoration: underline dotted;
+      }
+      
+      ul {
+          padding: 0;
+      }
+
+      li {
+          list-style: none;
+      }
+
+      code {
+          font-family: 'Fira Mono', monospace;
+      }
+
+      code .comment {
+        color: #757575;
+      }
+
+      p {
+          text-align: justify;
+      }
+
+      blockquote {
+          margin-left: 1em;
+          border-left: 2px solid black;
+          padding-left: 1em;
+      }
+
+      pre {
+          white-space: pre-line;
+          margin-left: 30pt;
+          text-indent: -30pt each-line;
+      }
+    </style>
+  </head>
+  <body>
+    <main>
+      <p><a href="/">Xymostech</a> &gt; <a href="/blog/">Blog</a></p>
+      <article>
+        <h1>Fuzzing with TeX or: Rounding is hard</h1>
+        <time datetime="2025-01-01">January 1st, 2025</time>
+
+        <p>This is (hopefully) the first in a series of longer articles I'm going
+        to write about building <a target="_blank" href="https://github.com/xymostech/XymosTeX">XymosTeX</a>,
+        my from-scratch implementation of TeX in Rust. I've traditionally written some
+        <a target="_blank" href="https://github.com/xymostech/XymosTeX/commit/e5f440cc1a646d05a4d6b8da0c947c400eccd659">fairly</a>
+        <a target="_blank" href="https://github.com/xymostech/XymosTeX/commit/0f1fcfb62c3e12b7b7f441c43962ff51cb390e40">lengthy</a>
+        <a target="_blank" href="https://github.com/xymostech/XymosTeX/commit/40a8795c3375480718dfaa6b8cdd16b8947c5925">commit messages</a>
+        which detail the project as I go along, but sometimes the scope of work
+        that I have to do is too long for a commit messsage, so I figure it
+        would be fun and maybe interesting to write a blog post when that happens.</p>
+
+        <p>Funnily enough, that last commit that I linked to ends with the statement:</p>
+
+        <blockquote>
+          <p>I will eventually get around to fixing the issue of Dimens needing to
+          be rounded as well.</p>
+        </blockquote>
+
+        <p>Well, that time is now! What I'm going to talk about is my adventure in
+        figuring out how to correctly round dimensions in TeX. I ended up
+        arriving at this place in a rather roundabout way though, which is part
+        of why I found this adventure so fun.</p>
+
+        <p>Let's start out with the current state of the XymosTeX project. As of
+        writing, I'm working through the rules which govern breaking long
+        paragraphs into individual, justified lines. This process is complex and
+        has many rules, but the result is often a very nicely formatted
+        paragraph. For fun, I've enabled justification on the paragraphs in this
+        blog post as an example of your browser's attempt at performing this
+        justification.</p>
+
+        <p>Most recently, I was attempting to make a small change to how the
+        breakpoints for the lines in a paragraph were chosen. The actual change
+        I was making isn't super important but it was a very subtle change (in
+        terms of how often it affects how the paragraphs look) which is what
+        ended up sending me down the rabbit hole that was the inspiration for
+        this blog post.</p>
+
+        <p>
+          <details>
+            <summary>More info on the actual change</summary>
+            <p>
+              When choosing line breaks, TeX is essentially performing a graph
+              search where the nodes are potential breakpoints (like spaces) and
+              the edges are the potential lines between those breakpoints. Each
+              breakpoint stores the "cost" of getting to that breakpoint from
+              the beginning of the paragraph where the cost is a calculation of
+              how "bad" the paragraph will look. There is a special kind of
+              "badness" calculation that can occur where TeX looks at bordering
+              pairs of lines and if one of them is stretched out but the other
+              one is squeezed tight it adds some extra "badness" to the second
+              line.
+            </p>
+
+            <p>
+              I discovered that in some cases if there are multiple possible
+              lines ending in the same place but one of them is a stretched out
+              line and one is a squeezed tight line, TeX will keep track of both
+              of them when looking for the next line to make instead of just
+              picking the one with the immediate least "badness". In normal
+              paragraphs the lines are usually rarely squeezed or stretched
+              very much so this doesn't end up happening very often which is
+              why the change is fairly subtle.
+            </p>
+          </details>
+        </p>
+
+        <p>
+          So, after I had made my change, I was fairly confident that it worked
+          as I intended but I wanted to be sure that my change was correct. It
+          was difficult to manually find edge cases where this affected the
+          output, so I decided to do something that I haven't done very much in
+          this project: compare my output to the output from actual TeX. And
+          because it was hard to find edge cases, I decided to test this against
+          a *bunch* of different cases.
+        </p>
+
+        <p>
+          I whipped up a quick <code>fuzz.sh</code> script to do this.
+          Thankfully I already had built tools which could very accurately
+          compare the output from my code and TeX. I set it up to test the
+          output of the same paragraph split at many different widths and with
+          slight tweaks to a few of the parameters which govern the breaking.
+        </p>
+
+        <details>
+          <summary>Why is it non-trivial to compare the output?</summary>
+          <p>
+            The output format of both my project and TeX is called a "dvi" file.
+            It's similar to a PDF file in that it contains the contents of pages
+            with each element (like a character) laid out in absolute
+            coordinates.
+          </p>
+
+          <p>
+            I could compare two DVI files byte-for-byte, but that doesn't end up
+            with a very useful comparison, partially because there is usually
+            differing metadata but also because there are multiple ways to
+            represent the same final output. For instance, if I want to put the
+            letter "a" at the coordinates (50, 100), a DVI file that says "move
+            right 50", "move down 100", "print 'a'" and one that says "move down
+            100", "move right 50", "print 'a'" will produce the same output, but
+            will differ from each other.
+          </p>
+
+          <p>
+            So, I have written a tool which "interprets" the DVI file, and spits
+            out the exact coordinates of each of the characters in the file. If
+            I compare this, even if the DVI files arrive at the same output in
+            different ways, I can be sure that the final output (i.e. what the
+            user sees) will be the same.
+          </p>
+
+          <p>
+            As an even deeper sidenote: The instructions for the canonical
+            "test" of TeX itself, TRIP.TEX, specify that these differences are
+            allowed and don't invalidate my goal of trying to create an
+            implementation of TeX.
+            <a href="https://texdoc.org/serve/tripman.pdf/0">In particular, it says:</a>
+          </p>
+
+          <blockquote>
+            <p>
+              The resulting file should agree with the master TRIP.TYP file of
+              step 0, except that some of the values might be a little off due
+              to floating-point rounding discrepancies. Furthermore there may be
+              differences between 'right' and 'w' and 'x' commands, and
+              between 'down' and 'y' and 'z'; the key thing is that all
+              characters and rules and xxx 's should be in almost the same
+              positions as specified in Appendix F. (If your DVI-writing
+              routines differ substantially from those in TEX.WEB, you may want
+              to write a DVIcompare program that detects any substantive
+              differences between two given DVI files. Such a routine would be
+              of general use besides. On the other hand, if you have set dvi buf
+              size to 800, then your DVI file should be virtually identical to
+              the one supplied.)
+            </p>
+          </blockquote>
+        </details>
+
+        <p>
+          I ran it, heart full of optimism, ready to prove that I was an
+          excellent TeXnician, and... it failed on the very first test case.
+          Oof. I rushed to compare them visually, side by side, to see why my
+          line breaking had failed, and... it looked correct? Very odd. I double
+          checked that I was looking at the correct output, ran my test again,
+          and found that indeed, the line breaking was actually working great.
+          But for some reason, the exact output was sliiiiiightly off. After a
+          bunch of manual diffing, I discovered that the incorrectly positioned
+          elements were off from the correct values by between 1 and 10 scaled
+          points.
+        </p>
+
+        <p>
+          For reference, a scaled point is 1/65,536th of a "point", which is
+          itself ~1/72nd of an inch, or ~1/28th of a cm. So being off by 10
+          scaled points means being off by 1/500,000th of an inch. No wonder I
+          wasn't able to see the error when I was comparing visually!
+        </p>
+
+        <p>
+          At this point, I knew that some of the elements were in the wrong
+          place, but I wasn't exactly sure which ones. The tiny amount of
+          difference made me very suspicious that I was simply rounding
+          something incorrectly, and some of my 
+          <a href="https://github.com/xymostech/XymosTeX/commit/0f1fcfb62c3e12b7b7f441c43962ff51cb390e40#diff-7f32f2a87febc2bf043f4b5fd34f442a4d7476371edae2dcaa0502a5427330e1L96">
+            previous encounters with rounding numbers in TeX</a>
+          told me that there were a few places ripe for the picking just by
+          looking at the current calculations that I was making. In particular,
+          anywhere that I was using a floating point number to do a calculation
+          was already suspect as I was fairly confident that TeX itself doesn't
+          use floating point numbers anywhere.
+        </p>
+
+        <p>
+          One of the first places I started tinkering was in what I call the
+          "glue set ratio", which is a number representing how much the spaces
+          in a line should stretch or shrink. This was a calculation that I was
+          doing a lot of during the line breaking step, and though it was not
+          using floating point calculations, I was worried that it was doing the
+          integer division in the wrong step so I was rounding incorrectly.
+          Tweaking this made some of the errors go away, but not all of them.
+          Back to square 1.
+        </p>
+
+        <p>
+          I then went and looked at my calculation of dimensions and remembered
+          that some of the division calculations between two dimensions were
+          using floating point. I tried changing that to use integers, which
+          required a few changes in other places. And after running... still
+          there were errors. At this point, I realized that going about this
+          haphazardly wasn't going to solve the issue. I needed to know what was
+          actually going wrong, and I needed a specific plan to fix it. 
+        </p>
+
+        <p>
+          To figure out the actual issue, I needed to know exactly which of the
+          elements were actually getting positioned incorrectly. Luckily, I
+          already had a plan for this, based off of an experiment I had done a
+          few years ago. When I was first testing out rendering to DVI files, I
+          had whipped up some javascript which used the output of my script
+          which spits out the locations of elements in the file and used that to
+          render the DVI files in the browser. I figured if I recreated that
+          experiment but added in some debugging information I could pinpoint
+          the elements that were causing issues.
+        </p>
+
+        <p>
+          Thus, <a href="https://tex-tools.xymoste.ch/dvi-rendering">a website</a>
+          was born. Even with this extremely basic debugging tool, I could
+          finally identify exactly what was going wrong. And identify I did! It
+          turned out, that the elements that seemed to be rounded incorrectly
+          weren't randomly scattered throughout the whole output, they were
+          clustered into individual lines. So of the 8 lines in the output, all
+          of the wrong elements would be in 1 or 2 of those. Very suspicious.
+        </p>
+
+        <p>
+          And here's where I started actually strategizing about how to fix
+          this. I expected that there was a rounding error in my code, so
+          instead of trying to tweak my code, I just started doing the
+          calculations I expected TeX to be doing manually inside of a Python
+          Jupyter notebook. That way, if I got the right answers in the
+          notebook, I could compare it to my code and see where my code went
+          wrong. My calculations would look something like this:
+        </p>
+
+        <pre>
+          <code><span class="comment"># \a = \hbox to20pt{x}</span>
+            <span class="comment"># {\a\a\a\a} {\a\a} {\a\a\a} {\a\a\a} {\a\a} {\a\a\a\a} {\a}</span>
+            total_space = 410 <span class="comment"># in pt</span>
+            box_space = (4 + 2 + 3 + 3 + 2 + 4 + 1) * 20 <span class="comment"># in pt</span>
+            non_box_space = (total_space - box_space) * 65536 <span class="comment"># in sp</span>
+            num_spaces = 6
+            spaces_space = num_spaces * 218453 <span class="comment"># 3.3333pt in sp</span>
+            stretch = non_box_space - spaces_space
+            space_stretch = 109226 * num_spaces <span class="comment"># 1.6666pt in sp</span>
+            stretch_amount = stretch * 65536 // space_stretch
+
+            <span class="comment"># calculate position of 5th box (4 boxes and 1 space in)</span>
+            box_pos = 4 * 20 * 65536 + 1 * 218453 + 1 * 109226 * stretch_amount // 65536</code>
+        </pre>
+
+        <p>
+          I would plug in the numbers that I was expecting and I would compare
+          it to the correct results and... I got the wrong answers! The
+          calculations I was doing in the Python notebook <strong>also</strong>
+          were wrong! At this point I was very confused but also very glad I had
+          started to debug this way. From there, I could rapidly iterate on the
+          calculation in my notebook and check the numbers against the TeX
+          output without having to try to fix my code.
+        </p>
+
+        <p>
+          After hours and hours of tweaking my calculations and staring
+          befuddled at the tiny differences in numbers, I finally found the two
+          clues that helped me solve the mystery. Both of them were fascinating
+          to discover and understand. The first: TeX was using a different form
+          of rounding than the 'default' behavior in some languages. And the
+          second: TeX was actually doing additional compensation for some of the
+          rounding errors!
+        </p>
+
+        <p>
+          The first clue: rounding methods. Before I delved down this rabbit
+          hole, I knew that there were multiple ways to round things. After all,
+          things like floor and ceiling were used frequently in many algorithms.
+          A fun question to answer: what kind of rounding is done when I perform
+          simple integer division? The answer: in Rust this is round to zero,
+          but in Python this is round to negative infinity! These strategies are
+          different for negative numbers, so even taking a strategy that worked
+          in Python might not have worked if I directly ported it into Rust. And
+          now the question: which one do I want to be using? One of those two?
+          Something more complex, like
+          <a href="https://doc.rust-lang.org/std/primitive.i32.html#method.div_euclid">
+            Euclidian division</a>?
+          After much pulling of hairs, I've found that I actually want two
+          different strategies. I used round to negative infinity (i.e.
+          flooring) when I was calculating dimensions, but I ended up needing to
+          use founding to nearest (i.e. 1/2 rounds to 1, 1/3 rounds to 0) when
+          actually generating the DVI file output. I'm not sure why both of
+          those are needed, but it seems to work!
+        </p>
+
+        <p>
+          The second clue: rounding compensation! When the amount of stretch or
+          shrink for the spaces is calculated, I realized that due to rounding,
+          sometimes there would be extra space left over. For instance, if you
+          had a line that was supposed to be 100pt wide but tried filling it
+          with spaces that were 19pt, you'd end up with 5 spaces and 5pt left
+          over. Previously, I was just discarding this extra space. The error
+          tended to be miniscule (again, on the order of 1/100,000ths of
+          inches), but apparently TeX was accounting for that! To account for
+          this, as I am laying out elements in the generated DVI file, I would
+          need to keep a running tally of how far into a given line I am and add
+          in tiny extra spaces to account for the lost space.
+        </p>
+
+        <p>
+          So, I took my new learnings, implemented it into the code, and finally
+          got back to running my fuzzing script. I was nervous but I fired it
+          up. And... it worked! Every single computed output 
+          <strong>exactly</strong> matched what TeX was giving me! I even
+          expanded my fuzzing script to throw even more wild parameters at my
+          implementation and it kept working. I was so relieved that I had
+          figured it out. Not only did this validate that my new rounding
+          calculations were working, but I also finally got validation that the
+          original change I was trying to make was working as well!
+        </p>
+
+        <p>
+          All that was left to do was add innumerable tests and bundle up these
+          fixes into a series of wild commits. This took several months to
+          figure out, test, and finally get committed. Now onto whatever
+          challege this project throws up next!
+        </p>
+      </article>
+    </main>
+  </body>
+</html>
